@@ -25,8 +25,8 @@ from zerver.models import (
 from zerver.lib.actions import (
     create_stream_if_needed, do_add_default_stream, do_add_subscription, do_change_is_admin,
     do_create_realm, do_remove_default_stream, do_set_realm_create_stream_by_admins_only,
-    gather_subscriptions, get_default_streams_for_realm, get_realm, get_stream,
-    get_user_profile_by_email, set_default_streams,
+    gather_subscriptions, gather_subscriptions_helper, get_default_streams_for_realm, get_realm,
+    get_stream, get_user_profile_by_email, set_default_streams,
 )
 
 from django.http import HttpResponse
@@ -1554,6 +1554,43 @@ class GetSubscribersTest(AuthedTestCase):
                 continue
             self.assertTrue(len(sub["subscribers"]) == len(users_to_subscribe))
         self.assert_length(queries, 4, exact=True)
+
+    @slow(0.15, "common_subscribe_to_streams is slow")
+    def test_never_subscribed_streams(self):
+        # type: () -> None
+        """
+        Check never_subscribed streams are fetched correctly and not include invite_only streams.
+        """
+        realm = get_realm("zulip.com")
+        streams = ["stream_%s" % i for i in range(10)]
+        for stream in streams:
+            create_stream_if_needed(realm, stream)
+        users_to_subscribe = ["othello@zulip.com", "cordelia@zulip.com"]
+        ret = self.common_subscribe_to_streams(
+            self.email,
+            streams,
+            dict(principals=ujson.dumps(users_to_subscribe)))
+        self.assert_json_success(ret)
+        ret = self.common_subscribe_to_streams(
+            self.email,
+            ["stream_invite_only_1"],
+            dict(principals=ujson.dumps(users_to_subscribe)),
+            invite_only=True)
+        self.assert_json_success(ret)
+        with queries_captured() as queries:
+            subscribed, unsubscribed, never_subscribed, email_dict = gather_subscriptions_helper(self.user_profile)
+        self.assertTrue(len(never_subscribed) >= 10)
+        invite_only_never_sub = False
+        for stream_dict in never_subscribed:
+            if stream_dict['name'] == "stream_invite_only_1":
+                invite_only_never_sub = True
+            if not stream_dict["name"].startswith("stream_"):
+                continue
+            self.assertTrue(len(stream_dict["subscribers"]) == len(users_to_subscribe))
+        self.assert_length(queries, 4, exact=True)
+
+        # Invite only stream should not be there in never_subscribed streams
+        self.assertEqual(invite_only_never_sub, False)
 
     @slow(0.15, "common_subscribe_to_streams is slow")
     def test_gather_subscriptions_mit(self):
