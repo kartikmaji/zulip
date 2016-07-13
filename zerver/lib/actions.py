@@ -1287,6 +1287,8 @@ def bulk_add_subscriptions(streams, users, current_user=None):
                 if sub.active:
                     already_subscribed.append((user_profile, stream_map[sub.recipient_id]))
                 else:
+                    sub.permissions = stream_map[sub.recipient_id].default_permissions
+                    sub.save()
                     subs_to_activate.append((sub, stream_map[sub.recipient_id]))
                     # Mark the sub as active, without saving, so that
                     # pick_color will consider this to be an active
