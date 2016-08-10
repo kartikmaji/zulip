@@ -16,7 +16,8 @@ from zerver.lib.actions import bulk_remove_subscriptions, \
     bulk_add_subscriptions, do_send_messages, get_subscriber_emails, do_rename_stream, \
     do_deactivate_stream, do_make_stream_public, do_add_default_stream, \
     do_change_stream_description, do_get_streams, do_make_stream_private, \
-    do_remove_default_stream, get_subscribers_details, get_subscription
+    do_remove_default_stream, get_subscribers_details, get_subscription, \
+    do_update_stream_permissions
 from zerver.lib.response import json_success, json_error, json_response
 from zerver.lib.validator import check_string, check_list, check_dict, \
     check_bool, check_variable_type
@@ -179,6 +180,15 @@ def update_stream_backend(request, user_profile, stream_name,
        do_change_stream_description(user_profile.realm, stream_name, description)
 
     return json_success({})
+
+@authenticated_json_post_view
+@has_request_variables
+def json_update_stream_permissions(request, user_profile, stream_name=REQ(),
+                                   default_permissions=REQ(validator=check_list(check_string), default=None)):
+    # type: (HttpRequest, UserProfile, text_type, Iterable[text_type]) -> HttpResponse
+    if default_permissions is not None:
+        do_update_stream_permissions(user_profile.realm, stream_name, default_permissions)
+    return json_success()
 
 def list_subscriptions_backend(request, user_profile):
     # type: (HttpRequest, UserProfile) -> HttpResponse

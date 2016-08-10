@@ -93,6 +93,18 @@
           <div class="change-stream-privacy">
             {{partial "change_stream_privacy"}}
           </div>
+          <div class="change-stream-default-permissions">
+            <form class="form-inline">
+              <input type="hidden" name="stream_name" value="{{name}}" />
+              {{#each default_permissions}}
+                <input class="default_permissions" type="checkbox" name="permission" value="{{@key}}"tabindex="-1" {{#if this}}checked{{/if}} />
+                <label class="subscription-control-label">{{@key}}</label>
+              {{/each}}
+              <button class="btn btn-danger update-stream-permissions-button" data-stream-name="{{name}}" tabindex="-1">
+                {{t "Update stream permissions" }}
+              </button>
+            </form>
+          </div>
         </div>
       {{/if}}
 

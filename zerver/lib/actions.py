@@ -1887,6 +1887,12 @@ def do_change_stream_description(realm, stream_name, new_description):
                  value=new_description)
     send_event(event, stream_user_ids(stream))
 
+def do_update_stream_permissions(realm, stream_name, default_permissions):
+    # type: (Realm, text_type, Iterable[text_type]) -> None
+    stream = get_stream(stream_name, realm)
+    stream.default_permissions = get_permission_val(default_permissions)
+    stream.save(update_fields=['default_permissions'])
+
 def do_create_realm(domain, name, restricted_to_domain=True):
     # type: (text_type, text_type, bool) -> Tuple[Realm, bool]
     realm = get_realm(domain)
@@ -2598,7 +2604,7 @@ def gather_subscriptions_helper(user_profile):
     stream_ids = set([sub["recipient__type_id"] for sub in sub_dicts])
     all_streams = get_active_streams(user_profile.realm).select_related(
         "realm").values("id", "name", "invite_only", "realm_id", \
-        "realm__domain", "email_token", "description")
+        "realm__domain", "email_token", "description", "default_permissions")
 
     stream_dicts = [stream for stream in all_streams if stream['id'] in stream_ids]
     stream_hash = {}
@@ -2646,6 +2652,7 @@ def gather_subscriptions_helper(user_profile):
                        'stream_id': stream["id"],
                        'description': stream["description"],
                        'permissions': sub["permissions"],
+                       'default_permissions': parse_sub_permissions(stream['default_permissions']),
                        'email_address': encode_email_address_helper(stream["name"], stream["email_token"])}
         if subscribers is not None:
             stream_dict['subscribers'] = subscribers

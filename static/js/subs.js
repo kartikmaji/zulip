@@ -458,6 +458,16 @@ function populate_subscriptions(subs, subscribed) {
     });
     subs.forEach(function (elem) {
         var stream_name = elem.name;
+        var permission_list = ['can_read', 'can_write', 'can_moderate',
+                               'can_add_remove_users'];
+        var default_permissions = {};
+        _.each(permission_list, function (permission) {
+            if (_.contains(elem.default_permissions, permission)) {
+                default_permissions[permission] = true;
+            } else {
+                default_permissions[permission] = false;
+            }
+        });
         var sub = create_sub(stream_name, {color: elem.color, in_home_view: elem.in_home_view,
                                            invite_only: elem.invite_only,
                                            desktop_notifications: elem.desktop_notifications,
@@ -468,7 +478,8 @@ function populate_subscriptions(subs, subscribed) {
                                            stream_id: elem.stream_id,
                                            subscribers: elem.subscribers,
                                            description: elem.description,
-                                           permissions: elem.permissions});
+                                           permissions: elem.permissions,
+                                           default_permissions: default_permissions});
         sub_rows.push(sub);
     });
 
@@ -1100,6 +1111,41 @@ $(function () {
             url: '/json/streams/' + stream_name,
             data: {
                 'description': JSON.stringify(description)
+            },
+            success: function () {
+                // The event from the server will update the rest of the UI
+                ui.report_success(i18n.t("The stream description has been updated!"),
+                                 $("#subscriptions-status"), 'subscriptions-status');
+            },
+            error: function (xhr) {
+                ui.report_error(i18n.t("Error updating the stream description"), xhr,
+                                $("#subscriptions-status"), 'subscriptions-status');
+            }
+        });
+    });
+
+    $('#subscriptions_table').on('submit', '.change-stream-default-permissions form', function (e) {
+        e.preventDefault();
+        var $form = $(e.target);
+
+        var $sub_row = $(e.target).closest('.subscription_row');
+        var stream_name = $sub_row.find('.subscription_name').text();
+        var description = $sub_row.find('input[name="description"]').val();
+
+        $('#subscriptions-status').hide();
+
+        var default_permissions = _.map(
+            $(".change-stream-default-permissions input:checkbox[name=permission]:checked"),
+            function (elem) {
+                return $(elem).val();
+            }
+        );
+
+        channel.patch({
+            url: '/json/update_stream_permissions',
+            data: {
+                'default_permissions': JSON.stringify(default_permissions),
+                'stream_name': stream_name
             },
             success: function () {
                 // The event from the server will update the rest of the UI
